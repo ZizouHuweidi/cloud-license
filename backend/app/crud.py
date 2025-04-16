@@ -5,9 +5,6 @@ from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
 from app.models import (
-    User,
-    UserCreate,
-    UserUpdate,
     Device,
     DeviceCreate,
     DeviceUpdate,
@@ -17,7 +14,11 @@ from app.models import (
     Notification,
     NotificationCreate,
     NotificationUpdate,
+    User,
+    UserCreate,
+    UserUpdate,
 )
+from app.services.audit import AuditService
 
 # ---------------------------------------------------------
 # User CRUD functions
@@ -88,20 +89,49 @@ def get_device_by_id(*, session: Session, device_id: uuid.UUID) -> Device | None
 # ---------------------------------------------------------
 # License CRUD functions
 # ---------------------------------------------------------
-def create_license(*, session: Session, license_in: LicenseCreate) -> License:
+def create_license(*, session: Session, license_in: LicenseCreate, user_id: uuid.UUID | None = None) -> License:
     db_license = License.model_validate(license_in)
     session.add(db_license)
     session.commit()
     session.refresh(db_license)
+    
+    # Log the creation in audit trail
+    audit_service = AuditService(session)
+    audit_service.log_change(
+        entity_type="license",
+        entity_id=str(db_license.id),
+        action="create",
+        changes={"initial_state": license_in.model_dump()},
+        user_id=str(user_id) if user_id else None
+    )
+    
     return db_license
 
 
-def update_license(*, session: Session, db_license: License, license_in: LicenseUpdate) -> Any:
+def update_license(*, session: Session, db_license: License, license_in: LicenseUpdate, user_id: uuid.UUID | None = None) -> Any:
+    # Store the previous state
+    previous_state = db_license.model_dump()
+    
+    # Update the license
     license_data = license_in.model_dump(exclude_unset=True)
     db_license.sqlmodel_update(license_data)
     session.add(db_license)
     session.commit()
     session.refresh(db_license)
+    
+    # Log the changes in audit trail
+    audit_service = AuditService(session)
+    audit_service.log_change(
+        entity_type="license",
+        entity_id=str(db_license.id),
+        action="update",
+        changes={
+            "previous_state": previous_state,
+            "updated_fields": license_data
+        },
+        user_id=str(user_id) if user_id else None
+    )
+    
     return db_license
 
 

@@ -6,7 +6,16 @@ from sqlmodel import select, func
 
 from app import crud
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Device, DeviceCreate, DevicePublic, DevicesPublic, DeviceUpdate, Message
+from app.models import (
+    Device,
+    DeviceCreate,
+    DevicePublic,
+    DevicesPublic,
+    DeviceUpdate,
+    Message,
+    DeviceStats,
+    License,
+)
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -65,3 +74,23 @@ def delete_device(session: SessionDep, current_user: CurrentUser, id: uuid.UUID)
     session.delete(device)
     session.commit()
     return Message(message="Device deleted successfully")
+
+@router.get("/stats", response_model=DeviceStats)
+def get_device_stats(session: SessionDep, current_user: CurrentUser) -> Any:
+    """
+    Get device statistics.
+    """
+    total_devices = session.exec(select(func.count()).select_from(Device)).one()
+    active_devices = session.exec(
+        select(func.count())
+        .select_from(Device)
+        .join(License)
+        .where(License.expiry_date > func.now())
+    ).one()
+    inactive_devices = total_devices - active_devices
+
+    return DeviceStats(
+        total=total_devices,
+        active=active_devices,
+        inactive=inactive_devices,
+    )

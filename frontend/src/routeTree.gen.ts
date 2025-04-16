@@ -11,17 +11,28 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as DashboardImport } from './routes/dashboard'
 import { Route as SignupImport } from './routes/signup'
 import { Route as ResetPasswordImport } from './routes/reset-password'
 import { Route as RecoverPasswordImport } from './routes/recover-password'
 import { Route as LoginImport } from './routes/login'
+import { Route as LicensesImport } from './routes/licenses'
+import { Route as DevicesImport } from './routes/devices'
 import { Route as LayoutImport } from './routes/_layout'
 import { Route as LayoutIndexImport } from './routes/_layout/index'
 import { Route as LayoutSettingsImport } from './routes/_layout/settings'
 import { Route as LayoutItemsImport } from './routes/_layout/items'
+import { Route as LayoutDashboardImport } from './routes/_layout/dashboard'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
+import { Route as LayoutLicensesIndexImport } from './routes/_layout/licenses/index'
+import { Route as LayoutLicensesLicenseIdImport } from './routes/_layout/licenses/$licenseId'
 
 // Create/Update Routes
+
+const DashboardRoute = DashboardImport.update({
+  path: '/dashboard',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const SignupRoute = SignupImport.update({
   path: '/signup',
@@ -40,6 +51,16 @@ const RecoverPasswordRoute = RecoverPasswordImport.update({
 
 const LoginRoute = LoginImport.update({
   path: '/login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const LicensesRoute = LicensesImport.update({
+  path: '/licenses',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DevicesRoute = DevicesImport.update({
+  path: '/devices',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -63,8 +84,23 @@ const LayoutItemsRoute = LayoutItemsImport.update({
   getParentRoute: () => LayoutRoute,
 } as any)
 
+const LayoutDashboardRoute = LayoutDashboardImport.update({
+  path: '/dashboard',
+  getParentRoute: () => LayoutRoute,
+} as any)
+
 const LayoutAdminRoute = LayoutAdminImport.update({
   path: '/admin',
+  getParentRoute: () => LayoutRoute,
+} as any)
+
+const LayoutLicensesIndexRoute = LayoutLicensesIndexImport.update({
+  path: '/licenses/',
+  getParentRoute: () => LayoutRoute,
+} as any)
+
+const LayoutLicensesLicenseIdRoute = LayoutLicensesLicenseIdImport.update({
+  path: '/licenses/$licenseId',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -74,6 +110,14 @@ declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/_layout': {
       preLoaderRoute: typeof LayoutImport
+      parentRoute: typeof rootRoute
+    }
+    '/devices': {
+      preLoaderRoute: typeof DevicesImport
+      parentRoute: typeof rootRoute
+    }
+    '/licenses': {
+      preLoaderRoute: typeof LicensesImport
       parentRoute: typeof rootRoute
     }
     '/login': {
@@ -96,6 +140,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminImport
       parentRoute: typeof LayoutImport
     }
+    '/_layout/dashboard': {
+      preLoaderRoute: typeof LayoutDashboardImport
+      parentRoute: typeof LayoutImport
+    }
     '/_layout/items': {
       preLoaderRoute: typeof LayoutItemsImport
       parentRoute: typeof LayoutImport
@@ -108,6 +156,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexImport
       parentRoute: typeof LayoutImport
     }
+    '/_layout/licenses/$licenseId': {
+      preLoaderRoute: typeof LayoutLicensesLicenseIdImport
+      parentRoute: typeof LayoutImport
+    }
+    '/dashboard': {
+      preLoaderRoute: typeof DashboardImport
+      parentRoute: typeof rootRoute
+    }
+    '/_layout/licenses/': {
+      preLoaderRoute: typeof LayoutLicensesIndexImport
+      parentRoute: typeof LayoutImport
+    }
   }
 }
 
@@ -116,14 +176,20 @@ declare module '@tanstack/react-router' {
 export const routeTree = rootRoute.addChildren([
   LayoutRoute.addChildren([
     LayoutAdminRoute,
+    LayoutDashboardRoute,
     LayoutItemsRoute,
     LayoutSettingsRoute,
     LayoutIndexRoute,
+    LayoutLicensesLicenseIdRoute,
+    LayoutLicensesIndexRoute,
   ]),
+  DevicesRoute,
+  LicensesRoute,
   LoginRoute,
   RecoverPasswordRoute,
   ResetPasswordRoute,
   SignupRoute,
+  DashboardRoute,
 ])
 
 /* prettier-ignore-end */

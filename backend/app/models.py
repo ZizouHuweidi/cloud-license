@@ -1,6 +1,5 @@
 import uuid
 from datetime import date, datetime
-from typing import List, Optional
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
@@ -14,7 +13,7 @@ class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
-    full_name: Optional[str] = Field(default=None, max_length=255)
+    full_name: str | None = Field(default=None, max_length=255)
 
 # Properties received during user creation
 class UserCreate(UserBase):
@@ -23,16 +22,16 @@ class UserCreate(UserBase):
 class UserRegister(SQLModel):
     email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=8, max_length=40)
-    full_name: Optional[str] = Field(default=None, max_length=255)
+    full_name: str | None = Field(default=None, max_length=255)
 
 # Properties received on user update
 class UserUpdate(UserBase):
-    email: Optional[EmailStr] = Field(default=None, max_length=255)
-    password: Optional[str] = Field(default=None, min_length=8, max_length=40)
+    email: EmailStr | None = Field(default=None, max_length=255)
+    password: str | None = Field(default=None, min_length=8, max_length=40)
 
 class UserUpdateMe(SQLModel):
-    full_name: Optional[str] = Field(default=None, max_length=255)
-    email: Optional[EmailStr] = Field(default=None, max_length=255)
+    full_name: str | None = Field(default=None, max_length=255)
+    email: EmailStr | None = Field(default=None, max_length=255)
 
 class UpdatePassword(SQLModel):
     current_password: str = Field(min_length=8, max_length=40)
@@ -43,14 +42,14 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     # Relationship to devices (a user might have added devices)
-    devices: List["Device"] = Relationship(back_populates="added_by")
+    devices: list["Device"] = Relationship(back_populates="added_by")
 
 # Properties to return via API for a single user
 class UserPublic(UserBase):
     id: uuid.UUID
 
 class UsersPublic(SQLModel):
-    data: List[UserPublic]
+    data: list[UserPublic]
     count: int
 
 # ========================================================
@@ -68,24 +67,24 @@ class DeviceCreate(DeviceBase):
 
 # Properties to receive on device update
 class DeviceUpdate(DeviceBase):
-    service_tag: Optional[str] = Field(default=None, max_length=100)
-    device_type: Optional[str] = Field(default=None, max_length=100)
+    service_tag: str | None = Field(default=None, max_length=100)
+    device_type: str | None = Field(default=None, max_length=100)
 
 # Database model for device; table name inferred from class name
 class Device(DeviceBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     # Added_by user field for reference; adjust as needed (e.g., if audit info is needed)
-    added_by_id: Optional[uuid.UUID] = Field(foreign_key="user.id", nullable=True)
-    added_by: Optional[User] = Relationship(back_populates="devices")
+    added_by_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True)
+    added_by: User | None = Relationship(back_populates="devices")
     # Relationship to licenses assigned to this device
-    licenses: List["License"] = Relationship(back_populates="device")
+    licenses: list["License"] = Relationship(back_populates="device")
 
 # Properties to return via API for a single device
 class DevicePublic(DeviceBase):
     id: uuid.UUID
 
 class DevicesPublic(SQLModel):
-    data: List[DevicePublic]
+    data: list[DevicePublic]
     count: int
 
 # ========================================================
@@ -103,18 +102,18 @@ class LicenseCreate(LicenseBase):
 
 # Properties to receive on license update
 class LicenseUpdate(LicenseBase):
-    license_type: Optional[str] = Field(default=None, max_length=100)
-    expiration_date: Optional[date] = None
+    license_type: str | None = Field(default=None, max_length=100)
+    expiration_date: date | None = None
 
 # Database model for license; table name inferred from class name
 class License(LicenseBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     device_id: uuid.UUID = Field(foreign_key="device.id", nullable=False)
-    device: Optional[Device] = Relationship(back_populates="licenses")
+    device: Device | None = Relationship(back_populates="licenses")
     # Relationship to history records
-    history: List["LicenseHistory"] = Relationship(back_populates="license")
+    history: list["LicenseHistory"] = Relationship(back_populates="license")
     # Relationship to notifications
-    notifications: List["Notification"] = Relationship(back_populates="license")
+    notifications: list["Notification"] = Relationship(back_populates="license")
 
 # Properties to return via API for a single license
 class LicensePublic(LicenseBase):
@@ -122,7 +121,7 @@ class LicensePublic(LicenseBase):
     device_id: uuid.UUID
 
 class LicensesPublic(SQLModel):
-    data: List[LicensePublic]
+    data: list[LicensePublic]
     count: int
 
 # ========================================================
@@ -143,7 +142,7 @@ class LicenseHistory(LicenseHistoryBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     license_id: uuid.UUID = Field(foreign_key="license.id", nullable=False)
     device_id: uuid.UUID = Field(foreign_key="device.id", nullable=False)
-    license: Optional[License] = Relationship(back_populates="history")
+    license: License | None = Relationship(back_populates="history")
 
 # ========================================================
 # Notification Models
@@ -151,22 +150,31 @@ class LicenseHistory(LicenseHistoryBase, table=True):
 
 # Shared properties for notification
 class NotificationBase(SQLModel):
-    notification_date: datetime  = Field(default_factory=datetime.utcnow)
+    message: str = Field(max_length=255)
+    urgency: str = Field(max_length=20)  # low, medium, high
+    read: bool = Field(default=False)
+    notification_date: datetime = Field(default_factory=datetime.utcnow)
     sent: bool = Field(default=False)
 
 # Properties to receive on notification creation
 class NotificationCreate(NotificationBase):
     license_id: uuid.UUID
+    user_id: uuid.UUID | None = None
 
 # Properties to receive on notification update
 class NotificationUpdate(NotificationBase):
-    sent: Optional[bool] = None
+    message: str | None = None
+    urgency: str | None = None
+    read: bool | None = None
+    sent: bool | None = None
 
 # Database model for notification; table name inferred from class name
 class Notification(NotificationBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     license_id: uuid.UUID = Field(foreign_key="license.id", nullable=False)
-    license: Optional[License] = Relationship(back_populates="notifications")
+    user_id: uuid.UUID | None = Field(foreign_key="user.id", nullable=True)
+    license: License | None = Relationship(back_populates="notifications")
+    user: User | None = Relationship()
 
 # Properties to return via API for a single notification
 class NotificationPublic(NotificationBase):
@@ -174,7 +182,7 @@ class NotificationPublic(NotificationBase):
     license_id: uuid.UUID
 
 class NotificationsPublic(SQLModel):
-    data: List[NotificationPublic]
+    data: list[NotificationPublic]
     count: int
 
 # ========================================================
@@ -192,8 +200,29 @@ class Token(SQLModel):
 
 # Contents of JWT token
 class TokenPayload(SQLModel):
-    sub: Optional[str] = None
+    sub: str | None = None
 
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+# ========================================================
+# Dashboard Models
+# ========================================================
+
+class DeviceStats(SQLModel):
+    total: int
+    active: int
+    inactive: int
+
+class LicenseStats(SQLModel):
+    total: int
+    active: int
+    expired: int
+
+class ExpiringLicenseResponse(LicensePublic):
+    device: DevicePublic
+    days_until_expiry: int
+
+class ExpiringLicensesResponse(SQLModel):
+    data: list[ExpiringLicenseResponse]
