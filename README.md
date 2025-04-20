@@ -1,87 +1,112 @@
-# Cloud License Dashboard
+# Cloud Device License Management Dashboard
 
-## Technology Stack and Features
+## Stack
 
-- ⚡ [**FastAPI**](https://fastapi.tiangolo.com) for the Python backend API.
-    - 🧰 [SQLModel](https://sqlmodel.tiangolo.com) for the Python SQL database interactions (ORM).
-    - 🔍 [Pydantic](https://docs.pydantic.dev), used by FastAPI, for the data validation and settings management.
-    - 💾 [PostgreSQL](https://www.postgresql.org) as the SQL database.
-- 🚀 [React](https://react.dev) for the frontend.
-    - 💃 Using TypeScript, hooks, Vite, and other parts of a modern frontend stack.
-    - 🎨 [Chakra UI](https://chakra-ui.com) for the frontend components.
-    - 🤖 An automatically generated frontend client.
-    - 🧪 [Playwright](https://playwright.dev) for End-to-End testing.
-    - 🦇 Dark mode support.
-- 🐋 [Docker Compose](https://www.docker.com) for development and production.
-- 🔒 Secure password hashing by default.
-- 🔑 JWT (JSON Web Token) authentication.
-- 📫 Email based password recovery.
-- ✅ Tests with [Pytest](https://pytest.org).
-- 📞 [Traefik](https://traefik.io) as a reverse proxy / load balancer.
-- 🚢 Deployment instructions using Docker Compose, including how to set up a frontend Traefik proxy to handle automatic HTTPS certificates.
-- 🏭 CI (continuous integration) and CD (continuous deployment) based on GitHub Actions.
+- **Frontend:** React
+- **Backend:** Go (Echo, GORM)
+- **Database:** PostgreSQL
+- **Email:** Mailpit (SMTP for local testing)
+- **Infrastructure:** Docker Compose
 
+---
 
-### Configure
+## Setup
 
-You can then update configs in the `.env` files to customize your configurations.
+1. Copy `.env.example` to `.env` and fill in secrets (see below).
+2. Run `docker-compose up --build` to start all services (backend, frontend, db, Mailpit).
+3. Access Mailpit UI at [http://localhost:8025](http://localhost:8025) to view all test emails.
 
-Before deploying it, make sure you change at least the values for:
+### Environment Variables
 
-- `SECRET_KEY`
-- `FIRST_SUPERUSER_PASSWORD`
-- `POSTGRES_PASSWORD`
+- Backend: Configure DB and SMTP (Mailpit) settings in `.env`:
+  - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `NOTIFY_EMAIL`
+- Frontend: Set API URL in `frontend/.env`
 
-You can (and should) pass these as environment variables from secrets.
+---
 
-Read the [deployment.md](./deployment.md) docs for more details.
+## Features
 
-### Generate Secret Keys
+- **User Auth:** Register, login (JWT), and Multi-Factor Authentication (MFA/TOTP)
+- **Device Management:** CRUD, search, export (PDF/Excel/email)
+- **License Management:** CRUD, search, export (PDF/Excel/email)
+- **Email:** All emails sent via Mailpit for local testing
+- **Notifications:** Daily email summary of expiring licenses
 
-Some environment variables in the `.env` file have a default value of `changethis`.
+---
 
-You have to change them with a secret key, to generate secret keys you can run the following command:
+## API Endpoints
 
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
+### Auth
 
-Copy the content and use that as password / secret key. And run that again to generate another secure key.
+- `POST /register` — `{ email, password }` → Register
+- `POST /login` — `{ email, password }` → Login, returns `{ token }`
+- All other endpoints require `Authorization: Bearer <token>`
 
-### Input Variables
+### MFA
 
-The input variables, with their default values are:
+- `POST /mfa/setup` — Get TOTP secret/URL (JWT required)
+- `POST /mfa/verify` — `{ code }` (JWT required)
 
-- `project_name`: (default: `"FastAPI Project"`) The name of the project, shown to API users (in .env).
-- `stack_name`: (default: `"fastapi-project"`) The name of the stack used for Docker Compose labels and project name (no spaces, no periods) (in .env).
-- `secret_key`: (default: `"changethis"`) The secret key for the project, used for security, stored in .env, you can generate one with the method above.
-- `first_superuser`: (default: `"admin@example.com"`) The email of the first superuser (in .env).
-- `first_superuser_password`: (default: `"changethis"`) The password of the first superuser (in .env).
-- `smtp_host`: (default: "") The SMTP server host to send emails, you can set it later in .env.
-- `smtp_user`: (default: "") The SMTP server user to send emails, you can set it later in .env.
-- `smtp_password`: (default: "") The SMTP server password to send emails, you can set it later in .env.
-- `emails_from_email`: (default: `"info@example.com"`) The email account to send emails from, you can set it later in .env.
-- `postgres_password`: (default: `"changethis"`) The password for the PostgreSQL database, stored in .env, you can generate one with the method above.
-- `sentry_dsn`: (default: "") The DSN for Sentry, if you are using it, you can set it later in .env.
+### Devices
 
-## Backend Development
+- `GET /devices` — List all
+- `GET /devices/:id` — Get by ID
+- `POST /devices` — Create
+- `PUT /devices/:id` — Update
+- `DELETE /devices/:id` — Delete
+- `GET /devices/search?service_tag=...` — Search
+- `POST /devices/:id/export` — Export (form fields: `format` [excel|pdf], `email` [optional])
 
-Backend docs: [backend/README.md](./backend/README.md).
+### Licenses
 
-## Frontend Development
+- `GET /licenses` — List all
+- `GET /licenses/:id` — Get by ID
+- `POST /licenses` — Create
+- `PUT /licenses/:id` — Update
+- `DELETE /licenses/:id` — Delete
+- `GET /licenses/search?license_type=...` — Search
+- `POST /licenses/:id/export` — Export (form fields: `format`, `email`)
 
-Frontend docs: [frontend/README.md](./frontend/README.md).
+---
 
-## Deployment
+## Testing Workflow
 
-Deployment docs: [deployment.md](./deployment.md).
+1. **Start services:** `docker-compose up --build`
+2. **Register user:** `POST /register`
+3. **Login:** `POST /login` → use JWT for all protected routes
+4. **MFA:**
+   - `POST /mfa/setup` (get QR/secret, scan in authenticator app)
+   - `POST /mfa/verify` (submit TOTP code)
+5. **Devices/Licenses:** Test all CRUD, search, and export endpoints
+6. **Email:** Trigger exports with `email` field or wait for notification worker; check Mailpit UI for emails
+7. **Error Handling:** Try invalid/expired JWT, missing fields, etc. — all errors return JSON
+
+---
+
+## Frontend Integration
+
+- **Auth:** Register/Login, store JWT, attach as `Authorization` header
+- **MFA:** Setup & verify flows as above
+- **CRUD:** Devices and licenses use standard REST endpoints
+- **Search:** Use query params
+- **Export:** POST with `format` and optionally `email` (if email, response is `{ message: "email sent" }`)
+- **Email:** All test emails visible in Mailpit
+
+---
 
 ## Development
 
-General development docs: [development.md](./development.md).
+- Use Docker Compose for all services, or run Go/Node locally
+- `.gitignore` is pre-configured
+- Database auto-migrates on backend startup
 
-This includes using Docker Compose, custom local domains, `.env` configurations, etc.
+---
 
-## Release Notes
+## Useful URLs
 
-Check the file [release-notes.md](./release-notes.md).
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:8080
+- **Mailpit:** http://localhost:8025
+
+---
