@@ -38,6 +38,22 @@ func MFASetupHandler(db *gorm.DB) echo.HandlerFunc {
 	}
 }
 
+// GET /mfa/status
+func MFAStatusHandler(db *gorm.DB) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userCtx, ok := c.Get("user").(UserContext)
+		if !ok {
+			return c.JSON(http.StatusUnauthorized, echo.Map{"error": "unauthorized"})
+		}
+		var user User
+		if err := db.First(&user, userCtx.UserID).Error; err != nil {
+			return c.JSON(http.StatusUnauthorized, echo.Map{"error": "user not found"})
+		}
+		enabled := user.MFASecret != ""
+		return c.JSON(http.StatusOK, echo.Map{"enabled": enabled})
+	}
+}
+
 // POST /mfa/verify
 func MFAVerifyHandler(db *gorm.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {

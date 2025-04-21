@@ -50,6 +50,7 @@ func main() {
 	api := e.Group("", internal.JWTMiddleware)
 
 	// MFA endpoints
+	api.GET("/mfa/status", internal.MFAStatusHandler(db))
 	api.POST("/mfa/setup", internal.MFASetupHandler(db))
 	api.POST("/mfa/verify", internal.MFAVerifyHandler(db))
 
